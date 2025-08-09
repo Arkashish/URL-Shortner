@@ -1,19 +1,30 @@
 const express = require('express');
 const { connectDB } = require('./connect')
-const app = express();
 const URL = require('./models/url')
-const PORT = 3001;
-const urlRoute = require('./routes/url');
 const path = require('path')
+const cookieParser = require('cookie-parser');
+const { restrictToLoggedinUserOnly, checkAuth } = require('./middleware/auth')
+
+const urlRoute = require('./routes/url');
 const staticRoute = require('./routes/staticRouter')
+const userRoute = require('./routes/user')
+
+const app = express();
+const PORT = 3001;
+
 connectDB('mongodb://localhost:27017/urlShortner').then(() => {
     console.log('MongoDb Connected')
 });
 
+
+
 app.set("view engine", "ejs");
 app.set('views', path.resolve('./views'));
+
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
+app.use(cookieParser())
+
 
 app.get("/test", async (req, res) => {
     const allUrls = await URL.find({});
@@ -21,9 +32,10 @@ app.get("/test", async (req, res) => {
         urls: allUrls
     })
 })
-app.use('/url', urlRoute);
+app.use('/url', restrictToLoggedinUserOnly, urlRoute);
+app.use("/user", userRoute);
+app.use("/",checkAuth, staticRoute);
 
-app.use("/", staticRoute)
 
 
 app.get('/url/:shortID', async (req, res) => {
